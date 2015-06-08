@@ -2320,6 +2320,12 @@ static int list_bucket(const char* path, S3ObjList& head, const char* delimiter,
 
   FPRNN("[path=%s]", path);
 
+  // Listing operation removed
+  // Access to the existing files is OK
+  // Not-existent path results in error (earlier, not here)
+  // Existent path shows empty list of files without any information of folder
+  return 0;
+
   if(delimiter && 0 < strlen(delimiter)){
     query_delimiter += "delimiter=";
     query_delimiter += delimiter;
