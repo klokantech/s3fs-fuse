@@ -3,6 +3,12 @@
  *
  * Copyright 2007-2008 Randy Rizun <rrizun@gmail.com>
  *
+ * HAWK #11
+ * Removed checking for special _$folder$ type or listing bucket
+ *   if not found object for reading (getattr)
+ * Copyright (C) 2015 Klokan Technologies GmbH (http://www.klokantech.com/)
+ * Author: Martin Mikita <martin.mikita@klokantech.com>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -201,7 +207,8 @@ static bool is_special_name_folder_object(const char* path)
   string    strpath = path;
   headers_t header;
 
-  if(!path || '\0' == path[0]){
+  // HAWK #11 skip checking _$folder$ type
+  if(!path || '\0' == path[0] || path) {
     return false;
   }
 
@@ -349,10 +356,11 @@ static int get_object_attribute(const char* path, struct stat* pstbuf, headers_t
 
   // Check cache.
   strpath = path;
-  if(overcheck && string::npos != (Pos = strpath.find("_$folder$", 0))){
-    strpath = strpath.substr(0, Pos);
-    strpath += "/";
-  }
+  // HAWK #11 skip checking _$folder$ type
+//   if(overcheck && string::npos != (Pos = strpath.find("_$folder$", 0))){
+//     strpath = strpath.substr(0, Pos);
+//     strpath += "/";
+//   }
   if(pisforce){
     (*pisforce) = false;
   }
@@ -377,36 +385,37 @@ static int get_object_attribute(const char* path, struct stat* pstbuf, headers_t
       result      = s3fscurl.HeadRequest(strpath.c_str(), (*pheader));
       s3fscurl.DestroyCurlHandle();
     }
-    if(0 != result){
-      // not found "object/", check "_$folder$"
-      strpath = path;
-      if(string::npos == strpath.find("_$folder$", 0)){
-        if('/' == strpath[strpath.length() - 1]){
-          strpath = strpath.substr(0, strpath.length() - 1);
-        }
-        strpath    += "_$folder$";
-        result      = s3fscurl.HeadRequest(strpath.c_str(), (*pheader));
-        s3fscurl.DestroyCurlHandle();
-      }
-    }
-    if(0 != result){
-      // not found "object/" and "object_$folder$", check no dir object.
-      strpath = path;
-      if(string::npos == strpath.find("_$folder$", 0)){
-        if('/' == strpath[strpath.length() - 1]){
-          strpath = strpath.substr(0, strpath.length() - 1);
-        }
-        if(-ENOTEMPTY == directory_empty(strpath.c_str())){
-          // found "no dir obejct".
-          strpath += "/";
-          forcedir = true;
-          if(pisforce){
-            (*pisforce) = true;
-          }
-          result = 0;
-        }
-      }
-    }
+    // HAWK #11 skip checking _$folder$ type and no-dir object
+//     if(0 != result){
+//       // not found "object/", check "_$folder$"
+//       strpath = path;
+//       if(string::npos == strpath.find("_$folder$", 0)){
+//         if('/' == strpath[strpath.length() - 1]){
+//           strpath = strpath.substr(0, strpath.length() - 1);
+//         }
+//         strpath    += "_$folder$";
+//         result      = s3fscurl.HeadRequest(strpath.c_str(), (*pheader));
+//         s3fscurl.DestroyCurlHandle();
+//       }
+//     }
+//     if(0 != result){
+//       // not found "object/" and "object_$folder$", check no dir object.
+//       strpath = path;
+//       if(string::npos == strpath.find("_$folder$", 0)){
+//         if('/' == strpath[strpath.length() - 1]){
+//           strpath = strpath.substr(0, strpath.length() - 1);
+//         }
+//         if(-ENOTEMPTY == directory_empty(strpath.c_str())){
+//           // found "no dir obejct".
+//           strpath += "/";
+//           forcedir = true;
+//           if(pisforce){
+//             (*pisforce) = true;
+//           }
+//           result = 0;
+//         }
+//       }
+//     }
   }else{
     // found "path" object.
     if('/' != strpath[strpath.length() - 1]){
@@ -432,10 +441,11 @@ static int get_object_attribute(const char* path, struct stat* pstbuf, headers_t
   }
 
   // if path has "_$folder$", need to cut it.
-  if(string::npos != (Pos = strpath.find("_$folder$", 0))){
-    strpath = strpath.substr(0, Pos);
-    strpath += "/";
-  }
+  // HAWK #11 checking _$folder$ skipped - no need to cutting it
+//   if(string::npos != (Pos = strpath.find("_$folder$", 0))){
+//     strpath = strpath.substr(0, Pos);
+//     strpath += "/";
+//   }
 
   // Set into cache
   if(0 != StatCache::getStatCacheData()->GetCacheSize()){
@@ -1004,10 +1014,11 @@ static int s3fs_rmdir(const char* path)
 
   // check for "_$folder$" object.
   // This processing is necessary for other S3 clients compatibility.
-  if(is_special_name_folder_object(strpath.c_str())){
-    strpath += "_$folder$";
-    result   = s3fscurl.DeleteRequest(strpath.c_str());
-  }
+  // HAWK #11 skip checking _$folder$ type
+//   if(is_special_name_folder_object(strpath.c_str())){
+//     strpath += "_$folder$";
+//     result   = s3fscurl.DeleteRequest(strpath.c_str());
+//   }
   S3FS_MALLOCTRIM(0);
 
   return result;
