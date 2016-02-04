@@ -105,6 +105,7 @@ class FdEntity
     int             fd;         // file descriptor(tmp file or cache file)
     FILE*           file;       // file pointer(tmp file or cache file)
     bool            is_modify;  // if file is changed, this flag is true
+    char *          s3path;
 
   private:
     void Clear(void);

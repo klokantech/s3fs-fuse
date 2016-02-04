@@ -76,6 +76,26 @@ using namespace std;
 #define ENOATTR				ENODATA
 #endif
 
+// Replace method
+//
+// Copyright (C) 2016 Klokan Technologies GmbH (http://www.klokantech.com/)
+// Author: Martin Mikita <martin.mikita@klokantech.com>
+#define   REPLACE_SLASH_CHARACTER        '|'
+int
+replace_path_slash(char ** path)
+{
+  char * ptr = *path;
+  char * result = *path;
+  if (*path == NULL)
+    return -1;
+  while ( *ptr != NULL || *ptr != '\0' ) {
+    if (*ptr == REPLACE_SLASH_CHARACTER)
+      *ptr = '/';
+    ++ptr;
+  }
+  return 0;
+}
+
 //-------------------------------------------------------------------
 // Structs
 //-------------------------------------------------------------------
@@ -356,6 +376,7 @@ static int get_object_attribute(const char* path, struct stat* pstbuf, headers_t
   S3fsCurl     s3fscurl;
   bool         forcedir = false;
   string::size_type Pos;
+  char * s3path = NULL;
 
   FPRNINFO("[path=%s]", path);
 
@@ -391,8 +412,11 @@ static int get_object_attribute(const char* path, struct stat* pstbuf, headers_t
   }
 
   // At first, check path
+  s3path = (char*) malloc(strlen(path) + 1);
+  memcpy(s3path, path, strlen(path)+1);
+  replace_path_slash(&s3path);
   strpath     = path;
-  result      = s3fscurl.HeadRequest(strpath.c_str(), (*pheader));
+  result      = s3fscurl.HeadRequest(s3path, (*pheader));
   s3fscurl.DestroyCurlHandle();
 
   // overcheck
@@ -455,6 +479,7 @@ static int get_object_attribute(const char* path, struct stat* pstbuf, headers_t
     // finally, "path" object did not find. Add no object cache.
     strpath = path;  // reset original
     StatCache::getStatCacheData()->AddNoObjectCache(strpath);
+    free(s3path);
     return result;
   }
 
@@ -470,12 +495,14 @@ static int get_object_attribute(const char* path, struct stat* pstbuf, headers_t
     // add into stat cache
     if(!StatCache::getStatCacheData()->AddStat(strpath, (*pheader), forcedir)){
       DPRN("failed adding stat cache [path=%s]", strpath.c_str());
+      free(s3path);
       return -ENOENT;
     }
     if(!StatCache::getStatCacheData()->GetStat(strpath, pstat, pheader, overcheck, pisforce)){
       // There is not in cache.(why?) -> retry to convert.
       if(!convert_header_to_stat(strpath.c_str(), (*pheader), pstat, forcedir)){
         DPRN("failed convert headers to stat[path=%s]", strpath.c_str());
+        free(s3path);
         return -ENOENT;
       }
     }
@@ -483,9 +510,11 @@ static int get_object_attribute(const char* path, struct stat* pstbuf, headers_t
     // cache size is Zero -> only convert.
     if(!convert_header_to_stat(strpath.c_str(), (*pheader), pstat, forcedir)){
       DPRN("failed convert headers to stat[path=%s]", strpath.c_str());
+      free(s3path);
       return -ENOENT;
     }
   }
+  free(s3path);
   return 0;
 }
 

@@ -32,6 +32,8 @@
   } \
 }
 
+int replace_path_slash(char ** path);
+
 //
 // s3fs use many small allocated chunk in heap area for
 // stats cache and parsing xml, etc. The OS may decide
