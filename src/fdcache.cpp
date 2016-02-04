@@ -493,6 +493,10 @@ void PageList::Dump(void)
 FdEntity::FdEntity(const char* tpath, const char* cpath)
           : is_lock_init(false), path(SAFESTRPTR(tpath)), cachepath(SAFESTRPTR(cpath)), fd(-1), file(NULL), is_modify(false)
 {
+  s3path = (char *) malloc(path.size() + 1);
+  memcpy(s3path, path.c_str(), path.size()+1);
+  replace_path_slash(&s3path);
+
   try{
     pthread_mutex_init(&fdent_lock, NULL);
     is_lock_init = true;
@@ -786,7 +790,7 @@ int FdEntity::Load(off_t start, off_t size)
 {
   int result = 0;
 
-  FPRNINFO("[path=%s][fd=%d][offset=%jd][size=%jd]", path.c_str(), fd, (intmax_t)start, (intmax_t)size);
+  FPRNINFO("[path=%s][s3path=%s][fd=%d][offset=%jd][size=%jd]", path.c_str(), s3path, fd, (intmax_t)start, (intmax_t)size);
 
   if(-1 == fd){
     return -EBADF;
@@ -808,14 +812,14 @@ int FdEntity::Load(off_t start, off_t size)
         if(120 > S3fsCurl::GetReadwriteTimeout()){
           backup = S3fsCurl::SetReadwriteTimeout(120);
         }
-        result = S3fsCurl::ParallelGetObjectRequest(path.c_str(), fd, (*iter)->offset, (*iter)->bytes);
+        result = S3fsCurl::ParallelGetObjectRequest(s3path, fd, (*iter)->offset, (*iter)->bytes);
         if(0 != backup){
           S3fsCurl::SetReadwriteTimeout(backup);
         }
       }else{
         // single request
         S3fsCurl s3fscurl;
-        result = s3fscurl.GetObjectRequest(path.c_str(), fd, (*iter)->offset, (*iter)->bytes);
+        result = s3fscurl.GetObjectRequest(s3path, fd, (*iter)->offset, (*iter)->bytes);
       }
       if(0 != result){
         break;
@@ -907,13 +911,13 @@ int FdEntity::RowFlush(const char* tpath, headers_t& meta, bool force_sync)
     if(120 > S3fsCurl::GetReadwriteTimeout()){
       backup = S3fsCurl::SetReadwriteTimeout(120);
     }
-    result = S3fsCurl::ParallelMultipartUploadRequest(tpath ? tpath : path.c_str(), meta, fd);
+    result = S3fsCurl::ParallelMultipartUploadRequest(s3path, meta, fd);
     if(0 != backup){
       S3fsCurl::SetReadwriteTimeout(backup);
     }
   }else{
     S3fsCurl s3fscurl(true);
-    result = s3fscurl.PutRequest(tpath ? tpath : path.c_str(), meta, fd);
+    result = s3fscurl.PutRequest(s3path, meta, fd);
   }
 
   // seek to head of file.
