@@ -80,12 +80,12 @@ using namespace std;
 //
 // Copyright (C) 2016 Klokan Technologies GmbH (http://www.klokantech.com/)
 // Author: Martin Mikita <martin.mikita@klokantech.com>
-#define   REPLACE_SLASH_CHARACTER        '|'
+#define   REPLACE_SLASH_CHARACTER        (char)30
+
 int
 replace_path_slash(char ** path)
 {
   char * ptr = *path;
-  char * result = *path;
   if (*path == NULL)
     return -1;
   while ( *ptr != NULL || *ptr != '\0' ) {
