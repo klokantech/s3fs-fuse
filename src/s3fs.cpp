@@ -1985,7 +1985,9 @@ static int s3fs_open(const char* path, struct fuse_file_info* fi)
   // clear stat for reading fresh stat.
   // (if object stat is changed, we refresh it. then s3fs gets always
   // stat when s3fs open the object).
-  StatCache::getStatCacheData()->DelStat(path);
+  // Expiry time will delete stat if necessary - no head requests for this expiry time
+  if (StatCache::getStatCacheData()->GetExpireTime() == -1)
+    StatCache::getStatCacheData()->DelStat(path);
 
   int mask = (O_RDONLY != (fi->flags & O_ACCMODE) ? W_OK : R_OK);
   if(0 != (result = check_parent_object_access(path, X_OK))){

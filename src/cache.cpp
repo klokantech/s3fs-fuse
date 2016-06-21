@@ -180,7 +180,9 @@ bool StatCache::GetStat(string& key, struct stat* pst, headers_t* meta, bool ove
           (*pisforce) = ent->isforce;
         }
         ent->hit_count++;
-        ent->cache_date = time(NULL);
+        // Cache date is now the first time access
+        if (!IsExpireTime)
+          ent->cache_date = time(NULL);
         pthread_mutex_unlock(&StatCache::stat_cache_lock);
         return true;
       }
