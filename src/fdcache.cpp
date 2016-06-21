@@ -45,6 +45,7 @@
 #include "s3fs_util.h"
 #include "string_util.h"
 #include "curl.h"
+#include "sha512.h"
 
 using namespace std;
 
@@ -65,13 +66,22 @@ bool CacheFileStat::MakeCacheFileStatPath(const char* path, string& sfile_path, 
   top_path       += bucket;
   top_path       += ".stat";
 
+  // make hash of the path
+  string hash_path = path;
+  string hash_prefix = path;
+  if (path && path[0] != '\0') {
+    hash_path = sha512(string(path));
+    hash_prefix = "/" + hash_path.substr(0, 2);
+  }
+
   if(is_create_dir){
-    mkdirp(top_path + mydirname(path), 0777);
+    mkdirp(top_path + hash_prefix, 0777);
   }
   if(!path || '\0' == path[0]){
     sfile_path = top_path;
   }else{
-    sfile_path = top_path + SAFESTRPTR(path);
+    hash_prefix += "/";
+    sfile_path = top_path + hash_prefix + hash_path;
   }
   return true;
 }
@@ -539,6 +549,8 @@ void FdEntity::Clear(void)
   path      = "";
   cachepath = "";
   is_modify = false;
+  free(s3path);
+  s3path = NULL;
 }
 
 void FdEntity::Close(void)
@@ -1098,13 +1110,23 @@ bool FdManager::MakeCachePath(const char* path, string& cache_path, bool is_crea
     return true;
   }
   string resolved_path(FdManager::cache_dir + "/" + bucket);
+
+  // make hash of the path
+  string hash_path = path;
+  string hash_prefix = path;
+  if (path && path[0] != '\0') {
+    hash_path = sha512(string(path));
+    hash_prefix = "/" + hash_path.substr(0, 2);
+  }
+
   if(is_create_dir){
-    mkdirp(resolved_path + mydirname(path), 0777);
+    mkdirp(resolved_path + hash_prefix, 0777);
   }
   if(!path || '\0' == path[0]){
     cache_path = resolved_path;
   }else{
-    cache_path = resolved_path + SAFESTRPTR(path);
+    hash_prefix += "/";
+    cache_path = resolved_path + hash_prefix + hash_path;
   }
   return true;
 }
